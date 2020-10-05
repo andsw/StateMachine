@@ -3,6 +3,7 @@ package com.jdf.statemachine_demo.config.persist;
 import com.jdf.statemachine_demo.event.FormEvents;
 import com.jdf.statemachine_demo.event.OrderEvents;
 import com.jdf.statemachine_demo.persist.memory.MemoryStateMachinePersist;
+import com.jdf.statemachine_demo.persist.pseudo.PseudoStateMachinePersist;
 import com.jdf.statemachine_demo.state.FormStates;
 import com.jdf.statemachine_demo.state.OrderStates;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,19 +42,28 @@ public class StateMachinePersistConfig {
     return new DefaultStateMachinePersister<>(new MemoryStateMachinePersist<>());
   }
 
-  @Bean(name = "orderRedisStateMachinePersist")
-  public StateMachinePersister<OrderStates, OrderEvents, String> orderRedisStateMachinePersist() {
+  @Bean(name = "orderRedisStateMachinePersister")
+  public StateMachinePersister<OrderStates, OrderEvents, String> orderRedisStateMachinePersister() {
     RedisStateMachineContextRepository<OrderStates, OrderEvents> repo = new RedisStateMachineContextRepository<>(
         redisConnectionFactory);
     return new RedisStateMachinePersister<>(new RepositoryStateMachinePersist<>(repo));
   }
 
-  @Bean(name = "formRedisStateMachinePersist")
-  public StateMachinePersister<FormStates, FormEvents, String> formRedisStateMachinePersist() {
-
+  @Bean(name = "formRedisStateMachinePersister")
+  public StateMachinePersister<FormStates, FormEvents, String> formRedisStateMachinePersister() {
     RedisStateMachineContextRepository<FormStates, FormEvents> repo = new RedisStateMachineContextRepository<>(
         redisConnectionFactory);
     return new RedisStateMachinePersister<>(new RepositoryStateMachinePersist<>(repo));
+  }
+
+  @Bean(name = "orderPseudoStateMachinePersister")
+  public StateMachinePersister<OrderStates, OrderEvents, OrderStates> orderPseudoStateMachinePersister() {
+    return new DefaultStateMachinePersister<>(new PseudoStateMachinePersist<>());
+  }
+
+  @Bean(name = "formPseudoStateMachinePersister")
+  public StateMachinePersister<FormStates, FormEvents, FormStates> formPseudoStateMachinePersister() {
+    return new DefaultStateMachinePersister<>(new PseudoStateMachinePersist<>());
   }
 
 }

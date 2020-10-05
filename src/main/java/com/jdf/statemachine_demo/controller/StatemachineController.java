@@ -9,6 +9,8 @@ import com.jdf.statemachine_demo.event.OrderEvents;
 import com.jdf.statemachine_demo.state.FormStates;
 import com.jdf.statemachine_demo.state.OrderStates;
 import javax.annotation.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.Message;
@@ -25,6 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class StatemachineController {
 
+  Logger logger = LoggerFactory.getLogger(getClass());
+
   private final BeanFactory beanFactory;
 
   private final OrderStateMachineBuilder orderStateMachineBuilder;
@@ -38,7 +42,10 @@ public class StatemachineController {
   private StateMachinePersister<FormStates, FormEvents, String> formMemoryStateMachinePersister;
 
   @Resource
-  private StateMachinePersister<FormStates, FormEvents, String> formRedisStateMachinePersist;
+  private StateMachinePersister<FormStates, FormEvents, String> formRedisStateMachinePersister;
+
+  @Resource
+  private StateMachinePersister<FormStates, FormEvents, FormStates> formPseudoStateMachinePersister;
 
   @Autowired
   public StatemachineController(
@@ -117,7 +124,7 @@ public class StatemachineController {
     formStateMachine.sendEvent(FormEvents.WRITE);
     formStateMachine.sendEvent(FormEvents.CONFIRM);
 
-    formRedisStateMachinePersist.persist(formStateMachine, form.getId());
+    formRedisStateMachinePersister.persist(formStateMachine, form.getId());
 
     return "form状态机存储成功！";
   }
@@ -126,12 +133,34 @@ public class StatemachineController {
   public String testRestoreFormStateMachineFromMemory(@PathVariable Integer id) throws Exception {
     StateMachine<FormStates, FormEvents> formStateMachine = formStateMachineBuilder
         .build(beanFactory);
-    formRedisStateMachinePersist.restore(formStateMachine, id.toString());
+    formRedisStateMachinePersister.restore(formStateMachine, id.toString());
 
     FormStates initStateFromRedis = formStateMachine.getState().getId();
     formStateMachine.sendEvent(FormEvents.SUBMIT);
     return "从内存中获取存储的StateMachine成功，当前状态：" + initStateFromRedis + ", SUBMIT后为："
         + formStateMachine.getState().getId();
+  }
+
+  /**
+   * 模拟通过从表中读取出的状态，构造状态机
+   * @param state 需要从伪持久化类中去除的状态机的状态
+   * @return
+   */
+  @GetMapping("/test/pseudo/form/{state}")
+  public String testRestoreFormStateMachineFromPseudoPersis(@PathVariable String state)
+      throws Exception {
+    FormStateMachineBuilder builder = new FormStateMachineBuilder();
+    StateMachine<FormStates, FormEvents> formStateMachine = builder.build(beanFactory);
+
+    FormStates formState = FormStates.BLANK;
+    try {
+      // 枚举查找区分大小写
+      formState = FormStates.valueOf(state.toUpperCase());
+    } catch (IllegalArgumentException e) {
+      logger.warn(state + "状态不存在，构造默认状态机");
+    }
+    formPseudoStateMachinePersister.restore(formStateMachine, formState);
+    return "从内存中获取存储的StateMachine成功，当前状态：" + formStateMachine.getState().getId();
   }
 
 }
