@@ -8,6 +8,7 @@ import com.jdf.statemachine_demo.event.FormEvents;
 import com.jdf.statemachine_demo.event.OrderEvents;
 import com.jdf.statemachine_demo.state.FormStates;
 import com.jdf.statemachine_demo.state.OrderStates;
+import javax.annotation.Resource;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.Message;
@@ -30,21 +31,22 @@ public class StatemachineController {
 
   private final FormStateMachineBuilder formStateMachineBuilder;
 
-  private final StateMachinePersister<OrderStates, OrderEvents, String> orderStateMachinePersist;
+  @Resource
+  private StateMachinePersister<OrderStates, OrderEvents, String> orderMemoryStateMachinePersister;
 
-  private final StateMachinePersister<FormStates, FormEvents, String> formStateMachinePersist;
+  @Resource
+  private StateMachinePersister<FormStates, FormEvents, String> formMemoryStateMachinePersister;
+
+  @Resource
+  private StateMachinePersister<FormStates, FormEvents, String> formRedisStateMachinePersist;
 
   @Autowired
   public StatemachineController(
       BeanFactory beanFactory, OrderStateMachineBuilder orderStateMachineBuilder,
-      FormStateMachineBuilder formStateMachineBuilder,
-      StateMachinePersister<OrderStates, OrderEvents, String> orderStateMachinePersist,
-      StateMachinePersister<FormStates, FormEvents, String> formStateMachinePersist) {
+      FormStateMachineBuilder formStateMachineBuilder) {
     this.beanFactory = beanFactory;
     this.orderStateMachineBuilder = orderStateMachineBuilder;
     this.formStateMachineBuilder = formStateMachineBuilder;
-    this.orderStateMachinePersist = orderStateMachinePersist;
-    this.formStateMachinePersist = formStateMachinePersist;
   }
 
   @GetMapping(value = "/test/order")
@@ -78,32 +80,58 @@ public class StatemachineController {
     orderStateMachine.start();
     orderStateMachine.sendEvent(OrderEvents.PAY);
 
-    orderStateMachinePersist.persist(orderStateMachine, order.getId().toString());
+    orderMemoryStateMachinePersister.persist(orderStateMachine, order.getId().toString());
 
     return "order状态机存储成功！";
   }
 
   @GetMapping(value = "/test/order/{id}")
   public String testRestoreOrderStateMachineFromMemory(@PathVariable Integer id) throws Exception {
-    StateMachine<OrderStates, OrderEvents> orderStateMachine = orderStateMachineBuilder.build(beanFactory);
-    orderStateMachinePersist.restore(orderStateMachine, id.toString());
+    StateMachine<OrderStates, OrderEvents> orderStateMachine = orderStateMachineBuilder
+        .build(beanFactory);
+    orderMemoryStateMachinePersister.restore(orderStateMachine, id.toString());
     String initStateFromMemory = orderStateMachine.getState().getId().toString();
     orderStateMachine.sendEvent(OrderEvents.RECEIVE);
     return "从内存中获取存储的StateMachine成功，当前状态：" + initStateFromMemory + ", receive后为："
         + orderStateMachine.getState().getId();
   }
 
+//  @PostMapping(value = "/test/form")
+//  public String testPersistFormStateMachineIntoMemory(@RequestBody Form form) throws Exception {
+//    FormStateMachineBuilder builder = new FormStateMachineBuilder();
+//    StateMachine<FormStates, FormEvents> formStateMachine = builder.build(beanFactory);
+//    formStateMachine.start();
+//    formStateMachine.sendEvent(FormEvents.WRITE);
+//    formStateMachine.sendEvent(FormEvents.CONFIRM);
+//
+//    formMemoryStateMachinePersister.persist(formStateMachine, form.toString());
+//
+//    return "form状态机存储成功！";
+//  }
+
   @PostMapping(value = "/test/form")
-  public String testPersistFormStateMachineIntoMemory(@RequestBody Form form) throws Exception {
+  public String testPersistFormStateMachineIntoRedis(@RequestBody Form form) throws Exception {
     FormStateMachineBuilder builder = new FormStateMachineBuilder();
     StateMachine<FormStates, FormEvents> formStateMachine = builder.build(beanFactory);
     formStateMachine.start();
     formStateMachine.sendEvent(FormEvents.WRITE);
     formStateMachine.sendEvent(FormEvents.CONFIRM);
 
-    formStateMachinePersist.persist(formStateMachine, form.toString());
+    formRedisStateMachinePersist.persist(formStateMachine, form.getId());
 
     return "form状态机存储成功！";
+  }
+
+  @GetMapping(value = "/test/form/{id}")
+  public String testRestoreFormStateMachineFromMemory(@PathVariable Integer id) throws Exception {
+    StateMachine<FormStates, FormEvents> formStateMachine = formStateMachineBuilder
+        .build(beanFactory);
+    formRedisStateMachinePersist.restore(formStateMachine, id.toString());
+
+    FormStates initStateFromRedis = formStateMachine.getState().getId();
+    formStateMachine.sendEvent(FormEvents.SUBMIT);
+    return "从内存中获取存储的StateMachine成功，当前状态：" + initStateFromRedis + ", SUBMIT后为："
+        + formStateMachine.getState().getId();
   }
 
 }

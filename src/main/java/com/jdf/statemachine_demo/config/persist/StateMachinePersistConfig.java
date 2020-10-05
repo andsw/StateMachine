@@ -5,26 +5,55 @@ import com.jdf.statemachine_demo.event.OrderEvents;
 import com.jdf.statemachine_demo.persist.memory.MemoryStateMachinePersist;
 import com.jdf.statemachine_demo.state.FormStates;
 import com.jdf.statemachine_demo.state.OrderStates;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.statemachine.persist.DefaultStateMachinePersister;
+import org.springframework.statemachine.persist.RepositoryStateMachinePersist;
 import org.springframework.statemachine.persist.StateMachinePersister;
+import org.springframework.statemachine.redis.RedisStateMachineContextRepository;
+import org.springframework.statemachine.redis.RedisStateMachinePersister;
 
 @Configuration
 public class StateMachinePersistConfig {
 
+  private final RedisConnectionFactory redisConnectionFactory;
+
+  @Autowired
+  public StateMachinePersistConfig(
+      RedisConnectionFactory redisConnectionFactory) {
+    this.redisConnectionFactory = redisConnectionFactory;
+  }
+
   /**
    * 注意区分 persist 和 persister
+   *
    * @return
    */
-  @Bean
-  public StateMachinePersister<OrderStates, OrderEvents, String> orderMemoryStateMachinePersist() {
+  @Bean(name = "orderMemoryStateMachinePersister")
+  public StateMachinePersister<OrderStates, OrderEvents, String> orderMemoryStateMachinePersister() {
     return new DefaultStateMachinePersister<>(new MemoryStateMachinePersist<>());
   }
 
-  @Bean
-  public StateMachinePersister<FormStates, FormEvents, String> FormMemoryStateMachinePersist() {
+  @Bean(name = "formMemoryStateMachinePersister")
+  public StateMachinePersister<FormStates, FormEvents, String> formMemoryStateMachinePersister() {
     return new DefaultStateMachinePersister<>(new MemoryStateMachinePersist<>());
+  }
+
+  @Bean(name = "orderRedisStateMachinePersist")
+  public StateMachinePersister<OrderStates, OrderEvents, String> orderRedisStateMachinePersist() {
+    RedisStateMachineContextRepository<OrderStates, OrderEvents> repo = new RedisStateMachineContextRepository<>(
+        redisConnectionFactory);
+    return new RedisStateMachinePersister<>(new RepositoryStateMachinePersist<>(repo));
+  }
+
+  @Bean(name = "formRedisStateMachinePersist")
+  public StateMachinePersister<FormStates, FormEvents, String> formRedisStateMachinePersist() {
+
+    RedisStateMachineContextRepository<FormStates, FormEvents> repo = new RedisStateMachineContextRepository<>(
+        redisConnectionFactory);
+    return new RedisStateMachinePersister<>(new RepositoryStateMachinePersist<>(repo));
   }
 
 }
