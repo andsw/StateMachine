@@ -1,9 +1,11 @@
 package com.jdf.statemachine_demo.config.persist;
 
+import com.jdf.statemachine_demo.event.ComplexFormEvents;
 import com.jdf.statemachine_demo.event.FormEvents;
 import com.jdf.statemachine_demo.event.OrderEvents;
 import com.jdf.statemachine_demo.persist.memory.MemoryStateMachinePersist;
 import com.jdf.statemachine_demo.persist.pseudo.PseudoStateMachinePersist;
+import com.jdf.statemachine_demo.state.ComplexFormStates;
 import com.jdf.statemachine_demo.state.FormStates;
 import com.jdf.statemachine_demo.state.OrderStates;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,6 +65,11 @@ public class StateMachinePersistConfig {
 
   @Bean(name = "formPseudoStateMachinePersister")
   public StateMachinePersister<FormStates, FormEvents, FormStates> formPseudoStateMachinePersister() {
+    return new DefaultStateMachinePersister<>(new PseudoStateMachinePersist<>());
+  }
+
+  @Bean(name = "complexFormPseudoStateMachinePersister")
+  public StateMachinePersister<ComplexFormStates, ComplexFormEvents, ComplexFormStates> complexFormPseudoStateMachinePersister() {
     return new DefaultStateMachinePersister<>(new PseudoStateMachinePersist<>());
   }
 
